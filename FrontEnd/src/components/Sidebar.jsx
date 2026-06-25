@@ -16,17 +16,17 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
- const recruiterLinks = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  const recruiterLinks = [
+    { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
 
-  { to: "/company-profile", icon: UserCircle, label: "Company Profile" },
+    { to: "/company-profile", icon: UserCircle, label: "Company Profile" },
 
-  { to: "/Post-Job", icon: Briefcase, label: "Job Posters" },
+    { to: "/Post-Job", icon: Briefcase, label: "Job Posters" },
 
-  { to: "/applicants", icon: Users, label: "View Applicants" },
+    { to: "/applicants", icon: Users, label: "View Applicants" },
 
-  { to: "/profile", icon: UserCircle, label: "Profile" },
-];
+    { to: "/profile", icon: UserCircle, label: "Profile" },
+  ];
 
   const jobSeekerLinks = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -44,7 +44,9 @@ export default function Sidebar() {
     <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col py-6 px-4 shrink-0">
       <div className="mb-8 px-2">
         <h2 className="text-xl font-bold text-white">
-          Recruiter Portal
+          {user?.role === "recruiter"
+            ? "Recruiter Portal"
+            : "Job Seeker Portal"}
         </h2>
       </div>
 
@@ -54,10 +56,9 @@ export default function Sidebar() {
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${
-                isActive
-                  ? "bg-indigo-600 text-white"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${isActive
+                ? "bg-indigo-600 text-white"
+                : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
               }`
             }
           >
@@ -74,10 +75,9 @@ export default function Sidebar() {
           <NavLink
             to="/admin"
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${
-                isActive
-                  ? "bg-amber-600 text-white"
-                  : "text-amber-400 hover:bg-slate-800"
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${isActive
+                ? "bg-amber-600 text-white"
+                : "text-amber-400 hover:bg-slate-800"
               }`
             }
           >

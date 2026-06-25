@@ -44,5 +44,56 @@ router.get("/", protect, async (req, res) => {
     });
   }
 });
+// Delete Job
+router.delete("/:id", protect, async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
 
+    if (!job) {
+      return res.status(404).json({
+        message: "Job not found",
+      });
+    }
+
+    await Job.findByIdAndDelete(req.params.id);
+
+    res.json({
+      message: "Job deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+});
+// Update Job
+router.put("/:id", protect, async (req, res) => {
+  try {
+    const job = await Job.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    res.json(job);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+});
+// Get All Jobs For Job Seekers
+router.get("/all", async (req, res) => {
+  try {
+    const jobs = await Job.find().sort({
+      createdAt: -1,
+    });
+
+    res.json(jobs);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+});
 module.exports = router;

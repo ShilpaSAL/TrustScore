@@ -1,9 +1,14 @@
-
-import { useEffect, useState as useStateD } from "react";
-import { Link as LinkD } from "react-router-dom";
-import { useAuth as useAuthD } from "../context/AuthContext";
+import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
-import { BrainCircuit, ClipboardList, TrendingUp, Award } from "lucide-react";
+import JobCard from "../components/JobCard";
+import JobDetailsModal from "../components/JobDetailsModal";
+import {
+  BrainCircuit,
+  ClipboardList,
+  TrendingUp,
+  Award,
+} from "lucide-react";
 
 function StatCard({ icon: Icon, label, value, color }) {
   return (
@@ -11,6 +16,7 @@ function StatCard({ icon: Icon, label, value, color }) {
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
         <Icon size={22} className="text-white" />
       </div>
+
       <div>
         <p className="text-slate-400 text-xs font-medium">{label}</p>
         <p className="text-2xl font-bold text-white">{value}</p>
@@ -19,66 +25,134 @@ function StatCard({ icon: Icon, label, value, color }) {
   );
 }
 
-export function Dashboard() {
-  const { user } = useAuthD();
-  const [history, setHistory] = useStateD([]);
+export default function Dashboard() {
+  const { user } = useAuth();
+
+  const [jobs, setJobs] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [selectedJob, setSelectedJob] = useState(null);
 
   useEffect(() => {
-    api.get("/predict/history").then(r => setHistory(r.data)).catch(() => {});
-  }, []);
+    if (user?.role === "jobseeker") {
+      api
+        .get("/job/all")
+        .then((res) => setJobs(res.data))
+        .catch((err) => console.log(err));
+    } else {
+      api
+        .get("/predict/history")
+        .then((res) => setHistory(res.data))
+        .catch((err) => console.log(err));
+    }
+  }, [user]);
 
-  const counts = { total: history.length, high: 0, medium: 0, low: 0 };
-  history.forEach(p => {
-    if (p.trust_label === "High Trust") counts.high++;
-    else if (p.trust_label === "Medium Trust") counts.medium++;
-    else counts.low++;
-  });
+  // JOB SEEKER DASHBOARD
+  if (user?.role === "jobseeker") {
+    return (
+      <div>
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-500 rounded-3xl p-8 mb-8">
+          <h1 className="text-4xl font-bold text-white">
+            Welcome Back, {user?.name} 👋
+          </h1>
 
+          <p className="text-white/80 mt-2">
+            Here are the latest job postings from verified recruiters.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard
+            icon={ClipboardList}
+            label="Available Jobs"
+            value={jobs.length}
+            color="bg-indigo-600"
+          />
+
+          <StatCard
+            icon={Award}
+            label="Applied Jobs"
+            value="0"
+            color="bg-emerald-600"
+          />
+
+          <StatCard
+            icon={TrendingUp}
+            label="Profile Views"
+            value="0"
+            color="bg-amber-600"
+          />
+
+          <StatCard
+            icon={BrainCircuit}
+            label="Low Trust Alerts"
+            value="0"
+            color="bg-red-600"
+          />
+        </div>
+
+        <h2 className="text-2xl font-bold text-white mb-5">
+          Latest Job Posts
+        </h2>
+
+        <div className="grid gap-5">
+          {jobs.map((job) => (
+            <JobCard
+              key={job._id}
+              job={job}
+              onView={setSelectedJob}
+            />
+          ))}
+        </div>
+
+        <JobDetailsModal
+          job={selectedJob}
+          isOpen={selectedJob !== null}
+          onClose={() => setSelectedJob(null)}
+        />
+      </div>
+    );
+  }
+
+  // RECRUITER DASHBOARD
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="text-slate-400 text-sm">Welcome back, {user?.name}</p>
-      </div>
+      <h1 className="text-3xl font-bold text-white mb-4">
+        Recruiter Dashboard
+      </h1>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard icon={ClipboardList} label="Total Predictions" value={counts.total}  color="bg-indigo-600" />
-        <StatCard icon={Award}        label="High Trust"        value={counts.high}   color="bg-emerald-600" />
-        <StatCard icon={TrendingUp}   label="Medium Trust"      value={counts.medium} color="bg-amber-600" />
-        <StatCard icon={BrainCircuit} label="Low Trust"         value={counts.low}    color="bg-red-600" />
-      </div>
+      <p className="text-slate-400 mb-8">
+        Welcome back, {user?.name}
+      </p>
 
-      <div className="flex gap-4 mb-8">
-        <LinkD to="/predict" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors text-sm">
-          + New Prediction
-        </LinkD>
-        <LinkD to="/history" className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl transition-colors text-sm">
-          View Full History
-        </LinkD>
-      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          icon={ClipboardList}
+          label="Total Predictions"
+          value={history.length}
+          color="bg-indigo-600"
+        />
 
-      {history.length > 0 && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-slate-300 mb-4">Recent Predictions</h2>
-          <div className="space-y-2">
-            {history.slice(0, 5).map(p => (
-              <div key={p._id} className="flex items-center justify-between py-2 border-b border-slate-800 last:border-0">
-                <span className="text-xs text-slate-400">{new Date(p.createdAt).toLocaleString()}</span>
-                <TrustBadge label={p.trust_label} />
-                <span className="text-xs text-slate-400">{p.confidence_score}% conf.</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        <StatCard
+          icon={Award}
+          label="High Trust"
+          value="0"
+          color="bg-emerald-600"
+        />
+
+        <StatCard
+          icon={TrendingUp}
+          label="Medium Trust"
+          value="0"
+          color="bg-amber-600"
+        />
+
+        <StatCard
+          icon={BrainCircuit}
+          label="Low Trust"
+          value="0"
+          color="bg-red-600"
+        />
+      </div>
     </div>
   );
-}
-export default Dashboard;
-
-function TrustBadge({ label }) {
-  const cls = label === "High Trust"   ? "bg-emerald-900/50 text-emerald-300"
-            : label === "Medium Trust" ? "bg-amber-900/50 text-amber-300"
-            : "bg-red-900/50 text-red-300";
-  return <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${cls}`}>{label}</span>;
 }
