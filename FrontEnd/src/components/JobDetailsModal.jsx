@@ -1,10 +1,12 @@
+import { useState } from "react";
+import api from "../api/axios";
 import {
-  X,
-  MapPin,
-  Building2,
-  Briefcase,
-  GraduationCap,
-  IndianRupee,
+    X,
+    MapPin,
+    Building2,
+    Briefcase,
+    GraduationCap,
+    IndianRupee,
 } from "lucide-react";
 
 export default function JobDetailsModal({
@@ -13,7 +15,27 @@ export default function JobDetailsModal({
     onClose,
 }) {
     if (!isOpen || !job) return null;
+    const [loading, setLoading] = useState(false);
 
+    const applyJob = async () => {
+        try {
+            setLoading(true);
+
+            const res = await api.post(
+                `/application/apply/${job._id}`
+            );
+
+            alert(res.data.message);
+
+            onClose();
+        } catch (err) {
+            alert(
+                err.response?.data?.message || "Failed to apply."
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
     return (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
             <div className="bg-slate-900 rounded-3xl w-[900px] max-h-[90vh] overflow-y-auto border border-slate-700">
@@ -148,8 +170,12 @@ export default function JobDetailsModal({
 
                     {/* Apply Button */}
                     <div className="flex justify-end">
-                        <button className="bg-indigo-600 hover:bg-indigo-500 px-8 py-3 rounded-xl text-white font-semibold">
-                            Apply Now
+                        <button
+                            onClick={applyJob}
+                            disabled={loading}
+                            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-xl text-white font-semibold"
+                        >
+                            {loading ? "Applying..." : "Apply Now"}
                         </button>
                     </div>
 

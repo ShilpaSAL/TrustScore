@@ -1,30 +1,21 @@
+import { useEffect, useState } from "react";
+import api from "../api/axios";
+
 export default function AppliedJobs() {
-  const appliedJobs = [
-    {
-      id: 1,
-      title: "Frontend Developer",
-      company: "TechNova Solutions",
-      location: "Bangalore",
-      status: "Under Review",
-      trustScore: 92,
-    },
-    {
-      id: 2,
-      title: "React Developer",
-      company: "Infosys",
-      location: "Mangalore",
-      status: "Shortlisted",
-      trustScore: 95,
-    },
-    {
-      id: 3,
-      title: "Software Engineer",
-      company: "ABC Technologies",
-      location: "Mumbai",
-      status: "Rejected",
-      trustScore: 60,
-    },
-  ];
+  const [applications, setApplications] = useState([]);
+
+  useEffect(() => {
+    fetchAppliedJobs();
+  }, []);
+
+  const fetchAppliedJobs = async () => {
+    try {
+      const { data } = await api.get("/application/my");
+      setApplications(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -32,50 +23,63 @@ export default function AppliedJobs() {
         Applied Jobs
       </h1>
 
-      <div className="grid gap-4">
-        {appliedJobs.map((job) => (
-          <div
-            key={job.id}
-            className="bg-slate-900 border border-slate-700 rounded-xl p-5"
-          >
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-bold text-white">
-                  {job.title}
-                </h2>
+      {applications.length === 0 ? (
+        <div className="bg-slate-900 border border-slate-700 rounded-xl p-10 text-center">
+          <h2 className="text-xl text-white mb-2">
+            No Applied Jobs
+          </h2>
 
-                <p className="text-indigo-400">
-                  {job.company}
-                </p>
+          <p className="text-slate-400">
+            You haven't applied for any jobs yet.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {applications.map((application) => (
+            <div
+              key={application._id}
+              className="bg-slate-900 border border-slate-700 rounded-xl p-5"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">
+                    {application.jobId?.jobTitle}
+                  </h2>
 
-                <p className="text-gray-400 mt-1">
-                  📍 {job.location}
-                </p>
-              </div>
+                  <p className="text-indigo-400">
+                    {application.jobId?.companyName}
+                  </p>
 
-              <div className="text-right">
-                <span className="bg-emerald-600 px-3 py-1 rounded text-white text-sm">
-                  Trust Score: {job.trustScore}
+                  <p className="text-slate-400 mt-1">
+                    📍 {application.jobId?.location}
+                  </p>
+
+                  <p className="text-green-400 mt-2">
+                    {application.jobId?.salary}
+                  </p>
+                </div>
+
+                <span
+                  className={`px-4 py-2 rounded-full text-white text-sm ${
+                    application.status === "Accepted"
+                      ? "bg-green-600"
+                      : application.status === "Rejected"
+                      ? "bg-red-600"
+                      : "bg-yellow-600"
+                  }`}
+                >
+                  {application.status}
                 </span>
               </div>
-            </div>
 
-            <div className="mt-4">
-              <span
-                className={`px-3 py-1 rounded text-white text-sm ${
-                  job.status === "Shortlisted"
-                    ? "bg-green-600"
-                    : job.status === "Rejected"
-                    ? "bg-red-600"
-                    : "bg-yellow-600"
-                }`}
-              >
-                {job.status}
-              </span>
+              <div className="mt-5 border-t border-slate-700 pt-4 text-sm text-slate-400">
+                Applied On :{" "}
+                {new Date(application.createdAt).toLocaleDateString()}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

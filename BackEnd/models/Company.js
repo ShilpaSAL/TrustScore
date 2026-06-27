@@ -5,43 +5,79 @@ const companySchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      required: true,
     },
 
+    // Company Information
     companyName: {
       type: String,
       required: true,
     },
 
-    companyDescription: {
-      type: String,
+    companyDescription: String,
+    companyWebsite: String,
+    companyEmail: String,
+    companyPhone: String,
+    companyLocation: String,
+    industryType: String,
+    companySize: String,
+    foundedYear: String,
+
+    // ==========================
+    // ML INPUT FEATURES
+    // ==========================
+
+    number_of_jobs_posted: {
+      type: Number,
+      default: 0,
     },
 
-    companyWebsite: {
-      type: String,
+    avg_job_description_length: {
+      type: Number,
+      default: 0,
     },
 
-    companyEmail: {
-      type: String,
+    company_logo_present: {
+      type: Number,
+      default: 0,
     },
 
-    companyPhone: {
-      type: String,
+    response_time_hours: {
+      type: Number,
+      default: 24,
     },
 
-    companyLocation: {
-      type: String,
+    job_posting_frequency: {
+      type: Number,
+      default: 1,
     },
 
-    industryType: {
-      type: String,
+    complaints_count: {
+      type: Number,
+      default: 0,
     },
 
-    companySize: {
-      type: String,
+    approval_rate: {
+      type: Number,
+      default: 0.8,
     },
 
-    foundedYear: {
+    // ==========================
+    // ML OUTPUT
+    // ==========================
+
+    trustLabel: {
       type: String,
+      default: "Medium Trust",
+    },
+
+    confidenceScore: {
+      type: Number,
+      default: 0,
+    },
+    profileCompletion: {
+      type: Number,
+      default: 0,
     },
   },
   {

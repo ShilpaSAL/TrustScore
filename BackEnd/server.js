@@ -10,6 +10,7 @@ const predictionRoutes = require("./routes/prediction");
 const adminRoutes = require("./routes/admin");
 const companyRoutes = require("./routes/company");
 const jobRoutes = require("./routes/Job");
+const applicationRoutes = require("./routes/application");
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use("/api/predict", predictionRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/company", companyRoutes);
 app.use("/api/job", jobRoutes);
+app.use("/api/application", applicationRoutes);
 
 // Health Check
 app.get("/health", (_req, res) => {
