@@ -17,6 +17,7 @@ import PostJob from "./pages/PostJob";
 import Applicants from "./pages/Applicants";
 import BrowseJobs from "./pages/BrowseJobs";
 import AppliedJobs from "./pages/AppliedJobs";
+import JobSeekerProfile from "./pages/JobSeekerProfile";
 
 const Private = ({ children, adminRequired }) => {
   const { user, loading } = useAuth();

@@ -7,11 +7,49 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true },
   password: { type: String, required: true, minlength: 6 },
   role: {
-    type: String,
+    type: 1String,
     enum: ["recruiter", "jobseeker", "admin"],
     default: "jobseeker"
   },
-  createdAt: { type: Date, default: Date.now }
+  phone: {
+    type: String,
+    default: "",
+  },
+
+  location: {
+    type: String,
+    default: "",
+  },
+
+  education: {
+    type: String,
+    default: "",
+  },
+
+  experience: {
+    type: String,
+    default: "",
+  },
+
+  skills: {
+    type: String,
+    default: "",
+  },
+
+  resume: {
+    type: String,
+    default: "",
+  },
+
+  profileImage: {
+    type: String,
+    default: "",
+  },
+
+  coverLetter: {
+    type: String,
+    default: "",
+  },
 });
 
 userSchema.pre("save", async function () {

@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
 import JobCard from "../components/JobCard";
 import JobDetailsModal from "../components/JobDetailsModal";
+import RecruiterDashboard from "../components/recruiter/RecruiterDashboard";
 import {
   BrainCircuit,
   ClipboardList,
@@ -29,7 +30,8 @@ export default function Dashboard() {
   const { user } = useAuth();
 
   const [jobs, setJobs] = useState([]);
-  const [history, setHistory] = useState([]);
+  const [company, setCompany] = useState(null);
+  const [applications, setApplications] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
 
   useEffect(() => {
@@ -39,9 +41,16 @@ export default function Dashboard() {
         .then((res) => setJobs(res.data))
         .catch((err) => console.log(err));
     } else {
-      api
-        .get("/predict/history")
-        .then((res) => setHistory(res.data))
+      Promise.all([
+        api.get("/company"),
+        api.get("/job"),
+        api.get("/application/recruiter"),
+      ])
+        .then(([companyRes, jobsRes, appRes]) => {
+          setCompany(companyRes.data);
+          setJobs(jobsRes.data);
+          setApplications(appRes.data);
+        })
         .catch((err) => console.log(err));
     }
   }, [user]);
@@ -114,45 +123,5 @@ export default function Dashboard() {
   }
 
   // RECRUITER DASHBOARD
-  return (
-    <div>
-      <h1 className="text-3xl font-bold text-white mb-4">
-        Recruiter Dashboard
-      </h1>
-
-      <p className="text-slate-400 mb-8">
-        Welcome back, {user?.name}
-      </p>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={ClipboardList}
-          label="Total Predictions"
-          value={history.length}
-          color="bg-indigo-600"
-        />
-
-        <StatCard
-          icon={Award}
-          label="High Trust"
-          value="0"
-          color="bg-emerald-600"
-        />
-
-        <StatCard
-          icon={TrendingUp}
-          label="Medium Trust"
-          value="0"
-          color="bg-amber-600"
-        />
-
-        <StatCard
-          icon={BrainCircuit}
-          label="Low Trust"
-          value="0"
-          color="bg-red-600"
-        />
-      </div>
-    </div>
-  );
+  return <RecruiterDashboard />;
 }
