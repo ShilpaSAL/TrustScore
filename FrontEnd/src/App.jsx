@@ -103,6 +103,14 @@ function AppRoutes() {
             </Private>
           }
         />
+        <Route
+          path="/jobseeker-profile"
+          element={
+            <Private>
+              <JobSeekerProfile />
+            </Private>
+          }
+        />
 
         <Route
           path="/predict"
