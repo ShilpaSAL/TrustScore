@@ -5,6 +5,8 @@ const dotenv = require("dotenv");
 
 dotenv.config();
 
+
+
 const authRoutes = require("./routes/auth");
 const predictionRoutes = require("./routes/prediction");
 const adminRoutes = require("./routes/admin");
