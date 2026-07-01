@@ -16,7 +16,8 @@ const applicationRoutes = require("./routes/application");
 
 const app = express();
 
-// Middleware
+// Middleware code
+
 app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:5173",
