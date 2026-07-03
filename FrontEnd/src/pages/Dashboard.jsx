@@ -59,14 +59,30 @@ export default function Dashboard() {
   if (user?.role === "jobseeker") {
     return (
       <div>
-        <div className="bg-gradient-to-r from-indigo-600 to-blue-500 rounded-3xl p-8 mb-8">
-          <h1 className="text-4xl font-bold text-white">
-            Welcome Back, {user?.name} 👋
-          </h1>
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-blue-600 to-blue-500 p-10 mb-8 shadow-xl">
 
-          <p className="text-white/80 mt-2">
-            Here are the latest job postings from verified recruiters.
-          </p>
+          <div className="absolute top-0 right-0 w-72 h-72 bg-white/5 rounded-full blur-3xl"></div>
+
+          <div className="relative flex justify-between items-center">
+
+            <div>
+
+              <h1 className="text-5xl font-bold text-white">
+                Welcome back, {user?.name} 👋
+              </h1>
+
+              <p className="text-lg text-white/80 mt-3">
+                Here are the latest job postings from verified recruiters.
+              </p>
+
+            </div>
+
+            <div className="bg-white/15 backdrop-blur-md px-6 py-3 rounded-full text-white font-semibold border border-white/20">
+              🛡 Trust-Verified Portal
+            </div>
+
+          </div>
+
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
