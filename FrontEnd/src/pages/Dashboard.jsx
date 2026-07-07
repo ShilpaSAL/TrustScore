@@ -9,18 +9,20 @@ import {
   ClipboardList,
   TrendingUp,
   Award,
+  ShieldCheck,
 } from "lucide-react";
 
-function StatCard({ icon: Icon, label, value, color }) {
+function StatCard({ icon: Icon, label, value, color }
+
+) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
-        <Icon size={22} className="text-white" />
-      </div>
+    <div className="bg-[#111827] border border-slate-700 rounded-3xl p-6 flex items-center gap-5 hover:border-indigo-500 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+      <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${color}`}>
+        <Icon size={26} className="text-white" />      </div>
 
       <div>
-        <p className="text-slate-400 text-xs font-medium">{label}</p>
-        <p className="text-2xl font-bold text-white">{value}</p>
+        <p className="text-sm text-slate-400 font-medium">{label}</p>
+        <p className="text-3xl font-bold text-white">{value}</p>
       </div>
     </div>
   );
@@ -33,13 +35,17 @@ export default function Dashboard() {
   const [company, setCompany] = useState(null);
   const [applications, setApplications] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.role === "jobseeker") {
+    if (!user) return;
+
+    if (user.role === "jobseeker") {
       api
         .get("/job/all")
         .then((res) => setJobs(res.data))
-        .catch((err) => console.log(err));
+        .catch((err) => console.log(err))
+        .finally(() => setLoading(false));
     } else {
       Promise.all([
         api.get("/company"),
@@ -51,41 +57,50 @@ export default function Dashboard() {
           setJobs(jobsRes.data);
           setApplications(appRes.data);
         })
-        .catch((err) => console.log(err));
+        .catch((err) => console.log(err))
+        .finally(() => setLoading(false));
     }
   }, [user]);
 
   // JOB SEEKER DASHBOARD
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen text-white text-xl">
+        Loading...
+      </div>
+    );
+  }
+
   if (user?.role === "jobseeker") {
     return (
       <div>
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-blue-600 to-blue-500 p-10 mb-8 shadow-xl">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-violet-600 to-cyan-500 p-12 mb-10 shadow-2xl">
 
           <div className="absolute top-0 right-0 w-72 h-72 bg-white/5 rounded-full blur-3xl"></div>
 
-          <div className="relative flex justify-between items-center">
-
+          <div className="relative flex justify-between items-center flex-wrap gap-6">
             <div>
 
-              <h1 className="text-5xl font-bold text-white">
+              <h1 className="text-5xl xl:text-6xl font-bold text-white leading-tight">
                 Welcome back, {user?.name} 👋
               </h1>
 
-              <p className="text-lg text-white/80 mt-3">
+              <p className="text-xl leading-relaxed text-white/80 mt-3">
                 Here are the latest job postings from verified recruiters.
               </p>
 
             </div>
 
-            <div className="bg-white/15 backdrop-blur-md px-6 py-3 rounded-full text-white font-semibold border border-white/20">
-              🛡 Trust-Verified Portal
+            <div className="flex items-center gap-2 bg-white/15 backdrop-blur-md px-6 py-3 rounded-full border border-white/20 text-white font-semibold">
+              <ShieldCheck size={20} />
+              <span>Trust Verified Portal</span>
             </div>
 
           </div>
 
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
             icon={ClipboardList}
             label="Available Jobs"
@@ -113,21 +128,50 @@ export default function Dashboard() {
             value="0"
             color="bg-red-600"
           />
+
+        </div>
+        <div className="mb-8">
+          <input
+            type="text"
+            placeholder="Search jobs..."
+            className="w-full bg-[#111827] border border-slate-700 rounded-2xl px-5 py-4 text-white placeholder:text-slate-500 outline-none focus:border-indigo-500"
+          />
+        </div>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-4xl font-bold text-white">
+              Latest Job Posts
+            </h2>
+
+            <p className="text-slate-400 mt-1">
+              Browse jobs from verified recruiters.
+            </p>
+          </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-white mb-5">
-          Latest Job Posts
-        </h2>
+        {jobs.length === 0 ? (
+          <div className="bg-[#111827] border border-slate-700 rounded-3xl p-12 text-center">
 
-        <div className="grid gap-5">
-          {jobs.map((job) => (
-            <JobCard
-              key={job._id}
-              job={job}
-              onView={setSelectedJob}
-            />
-          ))}
-        </div>
+            <h3 className="text-2xl font-bold text-white">
+              No Jobs Available
+            </h3>
+
+            <p className="text-slate-400 mt-2">
+              Please check back later for new opportunities.
+            </p>
+
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {jobs.map((job) => (
+              <JobCard
+                key={job._id}
+                job={job}
+                onView={setSelectedJob}
+              />
+            ))}
+          </div>
+        )}
 
         <JobDetailsModal
           job={selectedJob}
