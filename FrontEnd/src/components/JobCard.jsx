@@ -1,12 +1,11 @@
-import {
-  MapPin,
-  Clock3,
-  ShieldCheck,
-} from "lucide-react";
+
 
 export default function JobCard({ job, onView }) {
 
-  const trustScore = job.confidenceScore || 88;
+  const trustScore =
+    job.trustScore ??
+    job.confidenceScore ??
+    88;
 
   let badge =
     "bg-green-500/10 text-green-400 border border-green-500/40";
@@ -40,9 +39,8 @@ export default function JobCard({ job, onView }) {
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center text-2xl font-bold text-white shadow-lg">
 
             {job.companyName
-              ? job.companyName[0].toUpperCase()
+              ? job.companyName.charAt(0).toUpperCase()
               : "C"}
-
           </div>
 
           <div>
@@ -53,11 +51,14 @@ export default function JobCard({ job, onView }) {
 
             </h2>
 
-            <p className="text-slate-400 mt-1">
-
-              {job.companyName} • {job.location}
-
+            <p className="text-indigo-400 font-medium">
+              {job.companyName}
             </p>
+
+            <div className="flex items-center gap-2 text-slate-400 mt-1">
+              <MapPin size={15} />
+              <span>{job.location}</span>
+            </div>
 
           </div>
 
@@ -79,7 +80,7 @@ export default function JobCard({ job, onView }) {
 
       <div className="flex flex-wrap gap-2 mt-6">
 
-        {job.skills &&
+        {typeof job.skills === "string" &&
           job.skills.split(",").map((skill, index) => (
 
             <span
@@ -105,7 +106,7 @@ export default function JobCard({ job, onView }) {
 
           <h3 className="text-3xl font-bold text-white">
 
-            {job.salary}
+            {job.salary || "Not Disclosed"}
 
           </h3>
 
@@ -117,7 +118,9 @@ export default function JobCard({ job, onView }) {
 
             <Clock3 size={16} />
 
-            {new Date(job.createdAt).toLocaleDateString()}
+            {job.createdAt
+              ? new Date(job.createdAt).toLocaleDateString()
+              : "Recently Posted"}
 
           </div>
 
