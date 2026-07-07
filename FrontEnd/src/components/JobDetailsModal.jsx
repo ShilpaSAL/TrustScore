@@ -14,8 +14,28 @@ export default function JobDetailsModal({
     isOpen,
     onClose,
 }) {
-    if (!isOpen || !job) return null;
+
     const [loading, setLoading] = useState(false);
+
+    if (!isOpen || !job) return null;
+    const trustScore =
+        job.trustScore ??
+        job.confidenceScore ??
+        88;
+
+    const trustLabel =
+        trustScore >= 80
+            ? "High Trust"
+            : trustScore >= 55
+                ? "Medium Trust"
+                : "Low Trust";
+
+    const trustColor =
+        trustScore >= 80
+            ? "bg-green-600"
+            : trustScore >= 55
+                ? "bg-yellow-500"
+                : "bg-red-600";
 
     const applyJob = async () => {
         try {
@@ -37,9 +57,8 @@ export default function JobDetailsModal({
         }
     };
     return (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-            <div className="bg-slate-900 rounded-3xl w-[900px] max-h-[90vh] overflow-y-auto border border-slate-700">
-
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-slate-900 rounded-3xl w-full max-w-5xl mx-4 max-h-[90vh] overflow-y-auto border border-slate-700 shadow-2xl">
                 {/* Header */}
                 <div className="flex justify-between items-center p-6 border-b border-slate-700">
                     <div className="flex items-center gap-4">
@@ -62,7 +81,7 @@ export default function JobDetailsModal({
 
                     <button
                         onClick={onClose}
-                        className="text-gray-400 hover:text-white"
+                        className="p-2 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition"
                     >
                         <X size={30} />
                     </button>
@@ -81,26 +100,26 @@ export default function JobDetailsModal({
 
                         <div className="flex items-center gap-2 text-slate-300">
                             <IndianRupee size={18} />
-                            {job.salary}
+                            {job.salary || "Not Disclosed"}
                         </div>
 
                         <div className="flex items-center gap-2 text-slate-300">
                             <Briefcase size={18} />
-                            {job.experience}
+                            {job.experience || "Not Specified"}
                         </div>
 
                         <div className="flex items-center gap-2 text-slate-300">
                             <GraduationCap size={18} />
-                            {job.qualification}
+                            {job.qualification || "Not Specified"}
                         </div>
 
                         <div className="flex items-center gap-2 text-slate-300">
                             <Building2 size={18} />
-                            {job.jobType}
+                            {job.jobType || "Full Time"}
                         </div>
                         <div className="flex items-center gap-2 text-slate-300">
                             <Briefcase size={18} />
-                            Vacancies : {job.vacancies}
+                            Vacancies: {job.vacancies || "N/A"}
                         </div>
 
                     </div>
@@ -112,7 +131,7 @@ export default function JobDetailsModal({
                         </h3>
 
                         <div className="flex flex-wrap gap-2">
-                            {job.skills &&
+                            {typeof job.skills === "string" &&
                                 job.skills.split(",").map((skill, index) => (
                                     <span
                                         key={index}
@@ -131,7 +150,7 @@ export default function JobDetailsModal({
                         </h3>
 
                         <p className="text-slate-300 leading-7">
-                            {job.jobDescription}
+                            {job.jobDescription || "No description available."}
                         </p>
                     </div>
 
@@ -143,13 +162,13 @@ export default function JobDetailsModal({
 
                         <div className="grid grid-cols-2 gap-4">
 
-                            <div className="bg-green-600 rounded-xl p-4 text-center">
+                            <div className={`${trustColor} rounded-xl p-4 text-center`}>
                                 <h2 className="text-3xl font-bold text-white">
-                                    88
+                                    {trustScore}
                                 </h2>
 
-                                <p className="text-white">
-                                    High Trust
+                                <p className="text-white font-semibold">
+                                    {trustLabel}
                                 </p>
                             </div>
 
@@ -173,7 +192,7 @@ export default function JobDetailsModal({
                         <button
                             onClick={applyJob}
                             disabled={loading}
-                            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-xl text-white font-semibold"
+                            className="bg-gradient-to-r from-indigo-600 to-blue-500 hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-xl text-white font-semibold"
                         >
                             {loading ? "Applying..." : "Apply Now"}
                         </button>

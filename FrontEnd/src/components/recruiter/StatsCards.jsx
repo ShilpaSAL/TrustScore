@@ -1,3 +1,10 @@
+import {
+  ShieldCheck,
+  Briefcase,
+  Users,
+  TriangleAlert,
+} from "lucide-react";
+
 export default function StatsCards({
   company,
   jobs,
@@ -5,46 +12,60 @@ export default function StatsCards({
 }) {
   const cards = [
     {
-      value: Math.round(company?.confidenceScore || 0),
+      value: Math.round(company?.confidenceScore ?? company?.trustScore ?? 0),
       title: "Your Trust Score",
-      color: "text-green-400",
+      icon: ShieldCheck,
+      color: "bg-green-600",
     },
     {
       value: jobs.length,
       title: "Active Job Posts",
-      color: "text-indigo-500",
+      icon: Briefcase,
+      color: "bg-indigo-600",
     },
     {
       value: applications.length,
       title: "Total Applicants",
-      color: "text-amber-400",
+      icon: Users,
+      color: "bg-amber-500",
     },
     {
       value: company?.complaints_count || 0,
       title: "Complaints Filed",
-      color: "text-red-400",
+      icon: TriangleAlert,
+      color: "bg-red-600",
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 px-10 mt-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 px-8 mt-8">
 
-      {cards.map((card, index) => (
+      {cards.map(({ value, title, icon: Icon, color }, index) => (
 
         <div
           key={index}
-          className="bg-[#131c2d] border border-[#283247] rounded-2xl h-[115px] px-7 flex flex-col justify-center"
+          className="bg-[#111827] border border-slate-700 rounded-3xl p-6 flex items-center gap-5 hover:border-indigo-500 hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
         >
 
-          <h2
-            className={`text-5xl font-bold ${card.color}`}
+          {/* Icon */}
+          <div
+            className={`w-14 h-14 rounded-xl flex items-center justify-center ${color}`}
           >
-            {card.value}
-          </h2>
+            <Icon size={26} className="text-white" />
+          </div>
 
-          <p className="text-[#97A4C2] text-lg mt-2">
-            {card.title}
-          </p>
+          {/* Content */}
+          <div>
+
+            <p className="text-sm text-slate-400 font-medium">
+              {title}
+            </p>
+
+            <h2 className="text-3xl font-bold text-white mt-1">
+              {value}
+            </h2>
+
+          </div>
 
         </div>
 
