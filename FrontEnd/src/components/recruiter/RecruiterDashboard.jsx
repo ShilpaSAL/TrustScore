@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../api/axios";
+
 import DashboardHeader from "./DashboardHeader";
 import WelcomeBanner from "./WelcomeBanner";
 import StatsCards from "./StatsCards";
@@ -20,17 +21,66 @@ export default function RecruiterDashboard() {
 
     const fetchDashboardData = async () => {
       try {
-        const [companyRes, jobsRes, appRes] = await Promise.all([
+        setLoading(true);
+
+        // Load independently so one failed request
+        // does not prevent the other data from loading.
+        const [
+          companyResult,
+          jobsResult,
+          applicationsResult,
+        ] = await Promise.allSettled([
           api.get("/company"),
           api.get("/job"),
           api.get("/application/recruiter"),
         ]);
 
-        setCompany(companyRes.data);
-        setJobs(jobsRes.data);
-        setApplications(appRes.data);
+        // Company profile
+        if (companyResult.status === "fulfilled") {
+          setCompany(companyResult.value.data);
+        } else {
+          setCompany(null);
+
+          if (
+            companyResult.reason?.response?.status !== 404
+          ) {
+            console.error(
+              "Company loading error:",
+              companyResult.reason
+            );
+          }
+        }
+
+        // Recruiter jobs
+        if (jobsResult.status === "fulfilled") {
+          setJobs(
+            Array.isArray(jobsResult.value.data)
+              ? jobsResult.value.data
+              : []
+          );
+        } else {
+          setJobs([]);
+        }
+
+        // Applications
+        if (
+          applicationsResult.status === "fulfilled"
+        ) {
+          setApplications(
+            Array.isArray(
+              applicationsResult.value.data
+            )
+              ? applicationsResult.value.data
+              : []
+          );
+        } else {
+          setApplications([]);
+        }
       } catch (error) {
-        console.error("Error loading recruiter dashboard:", error);
+        console.error(
+          "Recruiter dashboard error:",
+          error
+        );
       } finally {
         setLoading(false);
       }
@@ -41,9 +91,10 @@ export default function RecruiterDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+      <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+
           <p className="text-white text-lg font-semibold">
             Loading Recruiter Dashboard...
           </p>
@@ -53,7 +104,7 @@ export default function RecruiterDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white">
+    <div className="text-white">
       <DashboardHeader />
 
       <WelcomeBanner />

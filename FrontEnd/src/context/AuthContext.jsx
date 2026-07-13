@@ -1,43 +1,76 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+
 import api from "../api/axios";
 
-const AuthCtx = createContext();
+const AuthContext = createContext(null);
 
-export const useAuth = () => useContext(AuthCtx);
+export const useAuth = () => {
+  return useContext(AuthContext);
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // ==========================================================
+  // Restore Login Session
+  // ==========================================================
+
   useEffect(() => {
-    const token = localStorage.getItem("rcas_token");
+    const restoreSession = async () => {
+      const token = localStorage.getItem("rcas_token");
 
-    if (token) {
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
-      api
-        .get("/auth/me")
-        .then((res) => {
-          setUser(res.data);
-        })
-        .catch(() => {
-          localStorage.removeItem("rcas_token");
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
-    }
+      try {
+        api.defaults.headers.common[
+          "Authorization"
+        ] = `Bearer ${token}`;
+
+        const { data } = await api.get("/auth/me");
+
+        setUser(data);
+      } catch (error) {
+        localStorage.removeItem("rcas_token");
+
+        delete api.defaults.headers.common[
+          "Authorization"
+        ];
+
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    restoreSession();
   }, []);
 
-  const login = async (email, password) => {
-    const { data } = await api.post("/auth/login", {
-      email,
-      password,
-    });
+  // ==========================================================
+  // Login
+  // ==========================================================
 
-    localStorage.setItem("rcas_token", data.token);
+  const login = async (email, password) => {
+    const { data } = await api.post(
+      "/auth/login",
+      {
+        email,
+        password,
+      }
+    );
+
+    localStorage.setItem(
+      "rcas_token",
+      data.token
+    );
 
     api.defaults.headers.common[
       "Authorization"
@@ -47,6 +80,10 @@ export function AuthProvider({ children }) {
 
     return data.user;
   };
+
+  // ==========================================================
+  // Register
+  // ==========================================================
 
   const register = async (
     name,
@@ -54,14 +91,20 @@ export function AuthProvider({ children }) {
     password,
     role
   ) => {
-    const { data } = await api.post("/auth/register", {
-      name,
-      email,
-      password,
-      role,
-    });
+    const { data } = await api.post(
+      "/auth/register",
+      {
+        name,
+        email,
+        password,
+        role,
+      }
+    );
 
-    localStorage.setItem("rcas_token", data.token);
+    localStorage.setItem(
+      "rcas_token",
+      data.token
+    );
 
     api.defaults.headers.common[
       "Authorization"
@@ -72,25 +115,40 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
+  // ==========================================================
+  // Update User in Context
+  // ==========================================================
+
+  const updateUser = (updatedUser) => {
+    setUser(updatedUser);
+  };
+
+  // ==========================================================
+  // Logout
+  // ==========================================================
+
   const logout = () => {
     localStorage.removeItem("rcas_token");
 
-    delete api.defaults.headers.common["Authorization"];
+    delete api.defaults.headers.common[
+      "Authorization"
+    ];
 
     setUser(null);
   };
 
   return (
-    <AuthCtx.Provider
+    <AuthContext.Provider
       value={{
         user,
         loading,
         login,
         register,
         logout,
+        updateUser,
       }}
     >
       {children}
-    </AuthCtx.Provider>
+    </AuthContext.Provider>
   );
 }

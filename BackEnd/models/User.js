@@ -1,65 +1,126 @@
-// backend/models/User.js
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
-  email: { type: String, required: true, unique: true, lowercase: true },
-  password: { type: String, required: true, minlength: 6 },
-  role: {
-    type: String,
-    enum: ["recruiter", "jobseeker", "admin"],
-    default: "jobseeker"
-  },
-  phone: {
-    type: String,
-    default: "",
-  },
+const userSchema = new mongoose.Schema(
+  {
+    // ========================================================
+    // Basic Account Information
+    // ========================================================
 
-  location: {
-    type: String,
-    default: "",
-  },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-  education: {
-    type: String,
-    default: "",
-  },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index: true,
+    },
 
-  experience: {
-    type: String,
-    default: "",
-  },
+    password: {
+      type: String,
+      required: true,
+      minlength: 6,
+      select: true,
+    },
 
-  skills: {
-    type: String,
-    default: "",
-  },
+    role: {
+      type: String,
+      enum: ["recruiter", "jobseeker", "admin"],
+      default: "jobseeker",
+    },
 
-  resume: {
-    type: String,
-    default: "",
-  },
+    // ========================================================
+    // Job Seeker Profile Information
+    // ========================================================
 
-  profileImage: {
-    type: String,
-    default: "",
-  },
+    phone: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-  coverLetter: {
-    type: String,
-    default: "",
+    location: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    education: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    experience: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    skills: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    resume: {
+      type: String,
+      default: "",
+    },
+
+    profileImage: {
+      type: String,
+      default: "",
+    },
+
+    coverLetter: {
+      type: String,
+      default: "",
+      trim: true,
+    },
   },
-});
+  {
+    timestamps: true,
+  }
+);
+
+
+// ============================================================
+// Hash Password Before Saving
+// ============================================================
 
 userSchema.pre("save", async function () {
-  if (!this.isModified("password")) return;
+  if (!this.isModified("password")) {
+    return;
+  }
 
-  this.password = await bcrypt.hash(this.password, 12);
+  this.password = await bcrypt.hash(
+    this.password,
+    12
+  );
 });
 
-userSchema.methods.comparePassword = function (plain) {
-  return bcrypt.compare(plain, this.password);
-};
 
-module.exports = mongoose.model("User", userSchema);
+// ============================================================
+// Compare Login Password
+// ============================================================
+
+userSchema.methods.comparePassword =
+  function (plainPassword) {
+    return bcrypt.compare(
+      plainPassword,
+      this.password
+    );
+  };
+
+
+module.exports = mongoose.model(
+  "User",
+  userSchema
+);

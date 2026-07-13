@@ -1,21 +1,28 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import api from "../api/axios";
 
-export default function CompanyProfile() {
-  const [company, setCompany] = useState({
-    companyName: "",
-    companyDescription: "",
-    companyWebsite: "",
-    companyEmail: "",
-    companyPhone: "",
-    companyLocation: "",
-    industryType: "",
-    companySize: "",
-    foundedYear: "",
-  });
+const emptyCompany = {
+  companyName: "",
+  companyDescription: "",
+  companyWebsite: "",
+  companyEmail: "",
+  companyPhone: "",
+  companyLocation: "",
+  industryType: "",
+  companySize: "",
+  foundedYear: "",
+};
 
+export default function CompanyProfile() {
+  const [company, setCompany] = useState(emptyCompany);
   const [savedCompany, setSavedCompany] = useState(null);
   const [editing, setEditing] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // ==========================================================
+  // Load Company Profile
+  // ==========================================================
 
   useEffect(() => {
     fetchCompany();
@@ -23,71 +30,221 @@ export default function CompanyProfile() {
 
   const fetchCompany = async () => {
     try {
-      const res = await api.get("/company");
+      setLoading(true);
 
-      if (res.data) {
-        setSavedCompany(res.data);
-        setCompany(res.data);
+      const { data } = await api.get("/company");
+
+      if (data) {
+        setSavedCompany(data);
+
+        setCompany({
+          companyName: data.companyName || "",
+          companyDescription:
+            data.companyDescription || "",
+          companyWebsite:
+            data.companyWebsite || "",
+          companyEmail:
+            data.companyEmail || "",
+          companyPhone:
+            data.companyPhone || "",
+          companyLocation:
+            data.companyLocation || "",
+          industryType:
+            data.industryType || "",
+          companySize:
+            data.companySize || "",
+          foundedYear:
+            data.foundedYear || "",
+        });
+
         setEditing(false);
       }
     } catch (error) {
-      console.log(error);
+      // 404 means the recruiter has not created
+      // a company profile yet.
+      if (error.response?.status === 404) {
+        setSavedCompany(null);
+        setEditing(true);
+      } else {
+        console.error(
+          "Fetch company error:",
+          error.response?.data || error.message
+        );
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
+  // ==========================================================
+  // Handle Input Changes
+  // ==========================================================
+
   const handleChange = (e) => {
-    setCompany({
-      ...company,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    setCompany((previousCompany) => ({
+      ...previousCompany,
+      [name]: value,
+    }));
   };
+
+  // ==========================================================
+  // Create / Update Company Profile
+  // ==========================================================
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      const res = await api.post("/company", company);
+      setSaving(true);
 
-      setSavedCompany(res.data);
+      const { data } = await api.post(
+        "/company",
+        company
+      );
+
+      // Corrected backend response:
+      // { message: "...", company: {...} }
+      const savedData = data.company;
+
+      setSavedCompany(savedData);
+
+      setCompany({
+        companyName:
+          savedData.companyName || "",
+        companyDescription:
+          savedData.companyDescription || "",
+        companyWebsite:
+          savedData.companyWebsite || "",
+        companyEmail:
+          savedData.companyEmail || "",
+        companyPhone:
+          savedData.companyPhone || "",
+        companyLocation:
+          savedData.companyLocation || "",
+        industryType:
+          savedData.industryType || "",
+        companySize:
+          savedData.companySize || "",
+        foundedYear:
+          savedData.foundedYear || "",
+      });
+
       setEditing(false);
 
-      alert("Company Profile Saved Successfully");
+      alert(
+        "Company profile saved successfully."
+      );
     } catch (error) {
-      console.log(error);
-      alert("Failed to Save Company Profile");
+      console.error(
+        "Save company error:",
+        error.response?.data || error.message
+      );
+
+      alert(
+        error.response?.data?.message ||
+          "Unable to save company profile."
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
+  // ==========================================================
+  // Delete Company Profile
+  // ==========================================================
+
   const handleDelete = async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete your company profile?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
     try {
       await api.delete("/company");
 
       setSavedCompany(null);
-
-      setCompany({
-        companyName: "",
-        companyDescription: "",
-        companyWebsite: "",
-        companyEmail: "",
-        companyPhone: "",
-        companyLocation: "",
-        industryType: "",
-        companySize: "",
-        foundedYear: "",
-      });
-
+      setCompany(emptyCompany);
       setEditing(true);
 
-      alert("Company Profile Deleted Successfully");
+      alert(
+        "Company profile deleted successfully."
+      );
     } catch (error) {
-      console.log(error);
+      console.error(
+        "Delete company error:",
+        error.response?.data || error.message
+      );
+
+      alert(
+        error.response?.data?.message ||
+          "Unable to delete company profile."
+      );
     }
   };
+
+  // ==========================================================
+  // Cancel Editing
+  // ==========================================================
+
+  const handleCancel = () => {
+    if (!savedCompany) {
+      setCompany(emptyCompany);
+      return;
+    }
+
+    setCompany({
+      companyName:
+        savedCompany.companyName || "",
+      companyDescription:
+        savedCompany.companyDescription || "",
+      companyWebsite:
+        savedCompany.companyWebsite || "",
+      companyEmail:
+        savedCompany.companyEmail || "",
+      companyPhone:
+        savedCompany.companyPhone || "",
+      companyLocation:
+        savedCompany.companyLocation || "",
+      industryType:
+        savedCompany.industryType || "",
+      companySize:
+        savedCompany.companySize || "",
+      foundedYear:
+        savedCompany.foundedYear || "",
+    });
+
+    setEditing(false);
+  };
+
+  // ==========================================================
+  // Loading
+  // ==========================================================
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-8 py-8">
+        <p className="text-gray-400">
+          Loading company profile...
+        </p>
+      </div>
+    );
+  }
+
+  // ==========================================================
+  // Company Overview
+  // ==========================================================
 
   if (!editing && savedCompany) {
     return (
       <div className="max-w-7xl mx-auto px-8 py-8">
         <div className="bg-[#111827] border border-slate-700 rounded-3xl shadow-xl p-8">
+
+          {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-8">
             <h1 className="text-4xl md:text-5xl font-bold text-white">
               Company Overview
@@ -110,82 +267,118 @@ export default function CompanyProfile() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 hover:border-indigo-500 transition-all duration-300">
-              <h3 className="text-gray-400 text-sm">Company Name</h3>
-              <p className="text-white text-lg font-semibold">
-                {savedCompany.companyName}
+          {/* Recruiter Credibility Result */}
+          <div className="grid md:grid-cols-3 gap-5 mb-8">
+
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+              <p className="text-gray-400 text-sm">
+                Recruiter Trust Level
+              </p>
+
+              <p className="text-xl font-bold text-white mt-2">
+                {savedCompany.trustLabel ||
+                  "Not Available"}
               </p>
             </div>
 
-            <div className="bg-slate-800 p-5 rounded-xl">
-              <h3 className="text-gray-400 text-sm">Industry</h3>
-              <p className="text-white">
-                {savedCompany.industryType}
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+              <p className="text-gray-400 text-sm">
+                Prediction Confidence
+              </p>
+
+              <p className="text-xl font-bold text-white mt-2">
+                {savedCompany.confidenceScore !==
+                undefined
+                  ? `${savedCompany.confidenceScore}%`
+                  : "Not Available"}
               </p>
             </div>
 
-            <div className="bg-slate-800 p-5 rounded-xl">
-              <h3 className="text-gray-400 text-sm">Email</h3>
-              <p className="text-white">
-                {savedCompany.companyEmail}
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+              <p className="text-gray-400 text-sm">
+                Profile Completion
+              </p>
+
+              <p className="text-xl font-bold text-white mt-2">
+                {savedCompany.profileCompletion || 0}%
               </p>
             </div>
 
-            <div className="bg-slate-800 p-5 rounded-xl">
-              <h3 className="text-gray-400 text-sm">Phone</h3>
-              <p className="text-white">
-                {savedCompany.companyPhone}
-              </p>
-            </div>
-
-            <div className="bg-slate-800 p-5 rounded-xl">
-              <h3 className="text-gray-400 text-sm">Website</h3>
-              <p className="text-white break-all">
-                {savedCompany.companyWebsite}
-              </p>
-            </div>
-
-            <div className="bg-slate-800 p-5 rounded-xl">
-              <h3 className="text-gray-400 text-sm">Location</h3>
-              <p className="text-white">
-                {savedCompany.companyLocation}
-              </p>
-            </div>
-
-            <div className="bg-slate-800 p-5 rounded-xl">
-              <h3 className="text-gray-400 text-sm">Company Size</h3>
-              <p className="text-white">
-                {savedCompany.companySize}
-              </p>
-            </div>
-
-            <div className="bg-slate-800 p-5 rounded-xl">
-              <h3 className="text-gray-400 text-sm">Founded Year</h3>
-              <p className="text-white">
-                {savedCompany.foundedYear}
-              </p>
-            </div>
           </div>
 
+          {/* Company Information */}
+          <div className="grid md:grid-cols-2 gap-6">
+
+            <InfoCard
+              title="Company Name"
+              value={savedCompany.companyName}
+            />
+
+            <InfoCard
+              title="Industry"
+              value={savedCompany.industryType}
+            />
+
+            <InfoCard
+              title="Email"
+              value={savedCompany.companyEmail}
+            />
+
+            <InfoCard
+              title="Phone"
+              value={savedCompany.companyPhone}
+            />
+
+            <InfoCard
+              title="Website"
+              value={savedCompany.companyWebsite}
+            />
+
+            <InfoCard
+              title="Location"
+              value={savedCompany.companyLocation}
+            />
+
+            <InfoCard
+              title="Company Size"
+              value={savedCompany.companySize}
+            />
+
+            <InfoCard
+              title="Founded Year"
+              value={savedCompany.foundedYear}
+            />
+
+          </div>
+
+          {/* Company Description */}
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 mt-6">
             <h3 className="text-gray-400 text-sm mb-2">
               Company Description
             </h3>
 
             <p className="text-white leading-7">
-              {savedCompany.companyDescription}
+              {savedCompany.companyDescription ||
+                "Not provided"}
             </p>
           </div>
+
         </div>
       </div>
     );
   }
 
+  // ==========================================================
+  // Company Profile Form
+  // ==========================================================
+
   return (
     <div className="max-w-4xl mx-auto p-6">
+
       <h1 className="text-3xl font-bold text-white mb-6">
-        Company Profile
+        {savedCompany
+          ? "Edit Company Profile"
+          : "Create Company Profile"}
       </h1>
 
       <form
@@ -199,6 +392,7 @@ export default function CompanyProfile() {
           placeholder="Company Name"
           onChange={handleChange}
           className="w-full p-3 rounded bg-slate-800 text-white"
+          required
         />
 
         <textarea
@@ -273,13 +467,49 @@ export default function CompanyProfile() {
           className="w-full p-3 rounded bg-slate-800 text-white"
         />
 
-        <button
-          type="submit"
-          className="bg-indigo-600 px-6 py-3 rounded text-white"
-        >
-          Save Company Profile
-        </button>
+        <div className="flex gap-3">
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-6 py-3 rounded text-white"
+          >
+            {saving
+              ? "Saving..."
+              : "Save Company Profile"}
+          </button>
+
+          {savedCompany && (
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="bg-gray-600 hover:bg-gray-500 px-6 py-3 rounded text-white"
+            >
+              Cancel
+            </button>
+          )}
+
+        </div>
       </form>
+    </div>
+  );
+}
+
+
+// ============================================================
+// Reusable Information Card
+// ============================================================
+
+function InfoCard({ title, value }) {
+  return (
+    <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+      <h3 className="text-gray-400 text-sm">
+        {title}
+      </h3>
+
+      <p className="text-white text-lg font-semibold break-all">
+        {value || "Not provided"}
+      </p>
     </div>
   );
 }
