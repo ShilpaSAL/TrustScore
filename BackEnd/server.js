@@ -3,9 +3,12 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
 
+// Load environment variables
 dotenv.config();
 
-
+// ============================================================
+// Import Routes
+// ============================================================
 
 const authRoutes = require("./routes/auth");
 const predictionRoutes = require("./routes/prediction");
@@ -16,7 +19,10 @@ const applicationRoutes = require("./routes/application");
 
 const app = express();
 
-// Middleware code
+
+// ============================================================
+// Middleware
+// ============================================================
 
 app.use(
   cors({
@@ -27,7 +33,11 @@ app.use(
 
 app.use(express.json());
 
-// Routes
+
+// ============================================================
+// API Routes
+// ============================================================
+
 app.use("/api/auth", authRoutes);
 app.use("/api/predict", predictionRoutes);
 app.use("/api/admin", adminRoutes);
@@ -35,24 +45,54 @@ app.use("/api/company", companyRoutes);
 app.use("/api/job", jobRoutes);
 app.use("/api/application", applicationRoutes);
 
-// Health Check
+
+// ============================================================
+// Backend Health Check
+// ============================================================
+
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok" });
+  res.status(200).json({
+    status: "success",
+    message: "Recruiter Credibility Assessment backend is running.",
+  });
 });
 
-// MongoDB Connection
-mongoose
-  .connect(process.env.MONGO_URI || "mongodb://localhost:27017/recruiter_db")
-  .then(() => {
-    console.log("MongoDB connected");
 
-    app.listen(process.env.PORT || 4000, () => {
-      console.log(
-        `Backend running on port ${process.env.PORT || 4000}`
-      );
+// ============================================================
+// Handle Unknown Routes
+// ============================================================
+
+app.use((req, res) => {
+  res.status(404).json({
+    message: "API route not found.",
+  });
+});
+
+
+// ============================================================
+// MongoDB Connection and Server Startup
+// ============================================================
+
+const PORT = process.env.PORT || 4000;
+
+mongoose
+  .connect(
+    process.env.MONGO_URI ||
+      "mongodb://localhost:27017/recruiter_db"
+  )
+  .then(() => {
+    console.log("MongoDB connected successfully.");
+
+    app.listen(PORT, () => {
+      console.log(`Backend running on port ${PORT}`);
+      console.log(`http://localhost:${PORT}`);
     });
   })
-  .catch((err) => {
-    console.error("DB error:", err);
+  .catch((error) => {
+    console.error(
+      "MongoDB connection error:",
+      error.message
+    );
+
     process.exit(1);
   });

@@ -1,29 +1,71 @@
 const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
+
 const User = require("../models/User");
 const { protect } = require("../middleware/auth");
 
-const sign = (id) =>
-  jwt.sign(
+
+// ============================================================
+// Generate JWT Token
+// ============================================================
+
+const signToken = (id) => {
+  return jwt.sign(
     { id },
     process.env.JWT_SECRET || "secret_key",
     { expiresIn: "7d" }
   );
+};
 
-// Register
+
+// ============================================================
+// Register User
+// ============================================================
+
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    let { name, email, password, role } = req.body;
 
-    const existingUser = await User.findOne({ email });
-
-    if (existingUser) {
+    // Validate required fields
+    if (!name || !email || !password || !role) {
       return res.status(400).json({
-        message: "Email already exists",
+        message:
+          "Name, email, password, and role are required.",
       });
     }
 
+    // Clean input values
+    name = name.trim();
+    email = email.trim().toLowerCase();
+    role = role.trim().toLowerCase();
+
+    // Validate role
+    const allowedRoles = [
+      "recruiter",
+      "jobseeker",
+    ];
+
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({
+        message:
+          "Invalid role. Select Recruiter or Job Seeker.",
+      });
+    }
+
+    // Check existing email
+    const existingUser = await User.findOne({
+      email,
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        message:
+          "An account with this email already exists.",
+      });
+    }
+
+    // Create user
     const user = await User.create({
       name,
       email,
@@ -31,8 +73,11 @@ router.post("/register", async (req, res) => {
       role,
     });
 
-    res.status(201).json({
-      token: sign(user._id),
+    return res.status(201).json({
+      message: "Registration successful.",
+
+      token: signToken(user._id),
+
       user: {
         id: user._id,
         name: user.name,
@@ -40,42 +85,64 @@ router.post("/register", async (req, res) => {
         role: user.role,
       },
     });
-  } catch (e) {
-    res.status(500).json({
-      message: e.message,
+
+  } catch (error) {
+    console.error(
+      "Registration error:",
+      error.message
+    );
+
+    return res.status(500).json({
+      message: "Unable to register user.",
     });
   }
 });
 
-// Login
+
+// ============================================================
+// Login User
+// ============================================================
+
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
 
-    console.log("Login attempt:", email);
+    if (!email || !password) {
+      return res.status(400).json({
+        message:
+          "Email and password are required.",
+      });
+    }
 
-    const user = await User.findOne({ email });
+    email = email.trim().toLowerCase();
 
-    console.log("User found:", user);
+    const user = await User.findOne({
+      email,
+    });
 
+    // Use one generic message for invalid credentials
     if (!user) {
       return res.status(401).json({
-        message: "User not found",
+        message:
+          "Invalid email or password.",
       });
     }
 
-    const isMatch = await user.comparePassword(password);
+    const isPasswordValid =
+      await user.comparePassword(password);
 
-    console.log("Password Match:", isMatch);
-
-    if (!isMatch) {
+    if (!isPasswordValid) {
       return res.status(401).json({
-        message: "Invalid password",
+        message:
+          "Invalid email or password.",
       });
     }
 
-    res.json({
-      token: sign(user._id),
+    return res.status(200).json({
+      message: "Login successful.",
+
+      token: signToken(user._id),
+
       user: {
         id: user._id,
         name: user.name,
@@ -83,42 +150,117 @@ router.post("/login", async (req, res) => {
         role: user.role,
       },
     });
-  } catch (e) {
-    console.log("Login Error:", e);
 
-    res.status(500).json({
-      message: e.message,
+  } catch (error) {
+    console.error(
+      "Login error:",
+      error.message
+    );
+
+    return res.status(500).json({
+      message: "Unable to login.",
     });
   }
 });
-// Get Profile
+
+
+// ============================================================
+// Get Logged-In User Profile
+// ============================================================
+
 router.get("/me", protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
-    res.json(user);
-  } catch (e) {
-    res.status(500).json({
-      message: e.message,
+    const user = await User.findById(
+      req.user._id
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found.",
+      });
+    }
+
+    return res.status(200).json(user);
+
+  } catch (error) {
+    console.error(
+      "Get profile error:",
+      error.message
+    );
+
+    return res.status(500).json({
+      message: "Unable to retrieve profile.",
     });
   }
 });
 
-// Update Profile
+
+// ============================================================
+// Update Logged-In User Profile
+// ============================================================
+
 router.put("/me", protect, async (req, res) => {
   try {
     const { name, email } = req.body;
 
+    const updateData = {};
+
+    if (name) {
+      updateData.name = name.trim();
+    }
+
+    if (email) {
+      const normalizedEmail =
+        email.trim().toLowerCase();
+
+      // Prevent duplicate email
+      const existingUser = await User.findOne({
+        email: normalizedEmail,
+        _id: { $ne: req.user._id },
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          message:
+            "An account with this email already exists.",
+        });
+      }
+
+      updateData.email = normalizedEmail;
+    }
+
     const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { name, email },
-      { new: true }
+      req.user._id,
+      updateData,
+      {
+        new: true,
+        runValidators: true,
+      }
     ).select("-password");
 
-    res.json(user);
-  } catch (e) {
-    res.status(500).json({
-      message: e.message,
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found.",
+      });
+    }
+
+    return res.status(200).json({
+      message:
+        "Profile updated successfully.",
+      user,
+    });
+
+  } catch (error) {
+    console.error(
+      "Update profile error:",
+      error.message
+    );
+
+    return res.status(500).json({
+      message: "Unable to update profile.",
     });
   }
 });
+
+
 module.exports = router;
