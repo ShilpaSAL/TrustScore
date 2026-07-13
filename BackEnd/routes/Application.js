@@ -4,7 +4,12 @@ const router = express.Router();
 const Application = require("../models/Application");
 const Job = require("../models/Job");
 const Notification = require("../models/Notification");
+
 const { protect } = require("../middleware/auth");
+
+const recalculateCredibility = require(
+  "../services/recalculateCredibility"
+);
 
 
 // ============================================================
@@ -59,13 +64,21 @@ router.post("/apply/:jobId", protect, async (req, res) => {
       isRead: false,
     });
 
+    // Recalculate recruiter's credibility
+    await recalculateCredibility(
+      job.recruiterId
+    );
+
     return res.status(201).json({
       message: "Application submitted successfully.",
       application,
     });
 
   } catch (error) {
-    console.error("Apply job error:", error);
+    console.error(
+      "Apply job error:",
+      error
+    );
 
     if (error.code === 11000) {
       return res.status(400).json({
@@ -88,7 +101,8 @@ router.get("/my", protect, async (req, res) => {
   try {
     if (req.user.role !== "jobseeker") {
       return res.status(403).json({
-        message: "Only job seekers can access applied jobs.",
+        message:
+          "Only job seekers can access applied jobs.",
       });
     }
 
@@ -96,18 +110,23 @@ router.get("/my", protect, async (req, res) => {
       applicantId: req.user._id,
     })
       .populate("jobId")
-      .sort({ createdAt: -1 });
+      .sort({
+        createdAt: -1,
+      });
 
-    return res.status(200).json(applications);
+    return res
+      .status(200)
+      .json(applications);
 
   } catch (error) {
     console.error(
       "Get job seeker applications error:",
-      error.message
+      error
     );
 
     return res.status(500).json({
-      message: "Unable to retrieve applications.",
+      message:
+        "Unable to retrieve applications.",
     });
   }
 });
@@ -117,42 +136,54 @@ router.get("/my", protect, async (req, res) => {
 // Get Applications Received by Recruiter
 // ============================================================
 
-router.get("/recruiter", protect, async (req, res) => {
-  try {
-    if (req.user.role !== "recruiter") {
-      return res.status(403).json({
-        message: "Only recruiters can view applicants.",
+router.get(
+  "/recruiter",
+  protect,
+  async (req, res) => {
+    try {
+      if (req.user.role !== "recruiter") {
+        return res.status(403).json({
+          message:
+            "Only recruiters can view applicants.",
+        });
+      }
+
+      const applications =
+        await Application.find({
+          recruiterId: req.user._id,
+        })
+          .populate("jobId")
+          .populate(
+            "applicantId",
+            "name email phone location education experience skills resume"
+          )
+          .sort({
+            createdAt: -1,
+          });
+
+      return res
+        .status(200)
+        .json(applications);
+
+    } catch (error) {
+      console.error(
+        "Get recruiter applications error:",
+        error
+      );
+
+      return res.status(500).json({
+        message:
+          "Unable to retrieve applicants.",
       });
     }
-
-    const applications = await Application.find({
-      recruiterId: req.user._id,
-    })
-      .populate("jobId")
-      .populate(
-        "applicantId",
-        "name email phone location education experience skills resume"
-      )
-      .sort({ createdAt: -1 });
-
-    return res.status(200).json(applications);
-
-  } catch (error) {
-    console.error(
-      "Get recruiter applications error:",
-      error.message
-    );
-
-    return res.status(500).json({
-      message: "Unable to retrieve applicants.",
-    });
   }
-});
+);
 
 
 // ============================================================
 // Update Application Status
 // Recruiter Only
+// Recalculate Credibility Automatically
 // ============================================================
 
 router.put("/:id", protect, async (req, res) => {
@@ -174,15 +205,17 @@ router.put("/:id", protect, async (req, res) => {
 
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
-        message: "Invalid application status.",
+        message:
+          "Invalid application status.",
       });
     }
 
-    // Find recruiter's own application
-    const application = await Application.findOne({
-      _id: req.params.id,
-      recruiterId: req.user._id,
-    }).populate("jobId");
+    // Find only recruiter's own application
+    const application =
+      await Application.findOne({
+        _id: req.params.id,
+        recruiterId: req.user._id,
+      }).populate("jobId");
 
     if (!application) {
       return res.status(404).json({
@@ -191,45 +224,103 @@ router.put("/:id", protect, async (req, res) => {
       });
     }
 
-    // Save old status to prevent duplicate notifications
-    const previousStatus = application.status;
+    const previousStatus =
+      application.status;
 
-    // Record first recruiter response time
+    // Record first response time
     if (
       previousStatus === "Pending" &&
       status !== "Pending" &&
       !application.respondedAt
     ) {
-      application.respondedAt = new Date();
+      application.respondedAt =
+        new Date();
     }
 
-    application.status = status;
+    application.status =
+      status;
 
     await application.save();
 
-    // Notify job seeker only when status actually changes
+
+    // ========================================================
+    // Notify Job Seeker
+    // ========================================================
+
     if (
       previousStatus !== status &&
-      (status === "Accepted" || status === "Rejected")
+      (
+        status === "Accepted" ||
+        status === "Rejected"
+      )
     ) {
       await Notification.create({
-        recipientId: application.applicantId,
-        type: "APPLICATION_STATUS",
-        title: "Application Status Updated",
+        recipientId:
+          application.applicantId,
+
+        type:
+          "APPLICATION_STATUS",
+
+        title:
+          "Application Status Updated",
+
         message: `Your application for ${
-          application.jobId?.jobTitle || "the job"
+          application.jobId?.jobTitle ||
+          "the job"
         } has been ${status.toLowerCase()}.`,
-        jobId: application.jobId?._id || application.jobId,
-        applicationId: application._id,
-        isRead: false,
+
+        jobId:
+          application.jobId?._id ||
+          application.jobId,
+
+        applicationId:
+          application._id,
+
+        isRead:
+          false,
       });
     }
 
+
+    // ========================================================
+    // Recalculate Recruiter Credibility
+    // ========================================================
+
+    const updatedCompany =
+      await recalculateCredibility(
+        req.user._id
+      );
+
+
     return res.status(200).json({
-      message: "Application status updated successfully.",
-      _id: application._id,
-      status: application.status,
-      respondedAt: application.respondedAt,
+      message:
+        "Application status updated successfully.",
+
+      _id:
+        application._id,
+
+      status:
+        application.status,
+
+      respondedAt:
+        application.respondedAt,
+
+      credibility:
+        updatedCompany
+          ? {
+              trustLabel:
+                updatedCompany.trustLabel,
+
+              confidenceScore:
+                updatedCompany.confidenceScore,
+
+              approval_rate:
+                updatedCompany.approval_rate,
+
+              response_time_hours:
+                updatedCompany.response_time_hours,
+            }
+          : null,
     });
 
   } catch (error) {
@@ -239,7 +330,8 @@ router.put("/:id", protect, async (req, res) => {
     );
 
     return res.status(500).json({
-      message: "Unable to update application status.",
+      message:
+        "Unable to update application status.",
     });
   }
 });

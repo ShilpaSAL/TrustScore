@@ -6,7 +6,12 @@ const Company = require("../models/Company");
 const Application = require("../models/Application");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
+
 const { protect } = require("../middleware/auth");
+
+const recalculateCredibility = require(
+  "../services/recalculateCredibility"
+);
 
 
 // ============================================================
@@ -22,29 +27,26 @@ router.get("/test", (req, res) => {
 
 // ============================================================
 // Get All Jobs for Job Seekers
-// Includes Real Recruiter Credibility Information
+// Includes Recruiter Credibility Information
 // ============================================================
 
 router.get("/all", async (req, res) => {
   try {
-    // Get all available jobs
     const jobs = await Job.find()
       .sort({ createdAt: -1 })
       .lean();
 
-    // Get recruiter IDs from jobs
     const recruiterIds = jobs
       .map((job) => job.recruiterId)
       .filter(Boolean);
 
-    // Get company profiles belonging to those recruiters
     const companies = await Company.find({
       userId: {
         $in: recruiterIds,
       },
     }).lean();
 
-    // Create recruiter ID -> company profile map
+    // Create recruiter -> company map
     const companyMap = {};
 
     companies.forEach((company) => {
@@ -53,8 +55,7 @@ router.get("/all", async (req, res) => {
       ] = company;
     });
 
-    // Attach recruiter credibility information
-    // to each job
+    // Attach recruiter credibility to every job
     const jobsWithCredibility = jobs.map(
       (job) => {
         const recruiterId =
@@ -66,7 +67,7 @@ router.get("/all", async (req, res) => {
         return {
           ...job,
 
-          // ML Prediction Result
+          // ML Result
           trustLabel:
             company?.trustLabel ||
             "Not Assessed",
@@ -75,7 +76,7 @@ router.get("/all", async (req, res) => {
             company?.confidenceScore ??
             null,
 
-          // Recruiter Behavioural Metrics
+          // Recruiter Behaviour Metrics
           profileCompletion:
             company?.profileCompletion ??
             0,
@@ -92,7 +93,15 @@ router.get("/all", async (req, res) => {
             company?.complaints_count ??
             0,
 
-          // Additional Company Information
+          number_of_jobs_posted:
+            company?.number_of_jobs_posted ??
+            0,
+
+          job_posting_frequency:
+            company?.job_posting_frequency ??
+            0,
+
+          // Company Information
           companyDescription:
             company?.companyDescription ||
             "",
@@ -125,56 +134,154 @@ router.get("/all", async (req, res) => {
   }
 });
 
+
 // ============================================================
-// Create Job and Notify Job Seekers
+// Create Job
+// Recruiter Only
+// Notify Job Seekers
+// Recalculate Recruiter Credibility
 // ============================================================
 
 router.post("/", protect, async (req, res) => {
   try {
-    // Only recruiters can post jobs
     if (req.user.role !== "recruiter") {
       return res.status(403).json({
-        message: "Only recruiters can post jobs.",
+        message:
+          "Only recruiters can post jobs.",
       });
     }
 
-    // Create the job
+    // Create job
     const job = await Job.create({
       ...req.body,
+
+      // Always use logged-in recruiter
       recruiterId: req.user._id,
     });
 
-    // Find all job seekers
+
+    // ========================================================
+    // Notify All Job Seekers
+    // ========================================================
+
     const jobSeekers = await User.find({
       role: "jobseeker",
     }).select("_id");
 
-    // Create one notification for each job seeker
     if (jobSeekers.length > 0) {
-      const notifications = jobSeekers.map(
-        (jobSeeker) => ({
-          recipientId: jobSeeker._id,
-          type: "NEW_JOB",
-          title: "New Job Posted",
-          message: `${job.companyName || "A company"
-            } posted a new job: ${job.jobTitle}`,
-          jobId: job._id,
-          isRead: false,
-        })
-      );
+      const notifications =
+        jobSeekers.map(
+          (jobSeeker) => ({
+            recipientId:
+              jobSeeker._id,
 
-      await Notification.insertMany(notifications);
+            type:
+              "NEW_JOB",
+
+            title:
+              "New Job Posted",
+
+            message: `${
+              job.companyName ||
+              "A company"
+            } posted a new job: ${
+              job.jobTitle
+            }`,
+
+            jobId:
+              job._id,
+
+            isRead:
+              false,
+          })
+        );
+
+      await Notification.insertMany(
+        notifications
+      );
     }
 
+
+    // ========================================================
+    // Recalculate Recruiter Credibility
+    // ========================================================
+
+    const updatedCompany =
+      await recalculateCredibility(
+        req.user._id
+      );
+
+
     return res.status(201).json({
-      message: "Job posted successfully.",
+      message:
+        "Job posted successfully.",
+
       job,
+
+      credibility: updatedCompany
+        ? {
+            trustLabel:
+              updatedCompany.trustLabel,
+
+            confidenceScore:
+              updatedCompany.confidenceScore,
+
+            number_of_jobs_posted:
+              updatedCompany
+                .number_of_jobs_posted,
+          }
+        : null,
     });
+
   } catch (error) {
-    console.error("Create job error:", error);
+    console.error(
+      "Create job error:",
+      error
+    );
 
     return res.status(500).json({
-      message: error.message,
+      message:
+        error.message,
+    });
+  }
+});
+
+
+// ============================================================
+// Get Logged-in Recruiter's Own Posted Jobs
+// ============================================================
+
+router.get("/", protect, async (req, res) => {
+  try {
+    if (req.user.role !== "recruiter") {
+      return res.status(403).json({
+        message:
+          "Only recruiters can access their posted jobs.",
+      });
+    }
+
+    // IMPORTANT:
+    // Only return jobs belonging to logged-in recruiter
+    const jobs = await Job.find({
+      recruiterId:
+        req.user._id,
+    }).sort({
+      createdAt: -1,
+    });
+
+    return res
+      .status(200)
+      .json(jobs);
+
+  } catch (error) {
+    console.error(
+      "Get recruiter jobs error:",
+      error
+    );
+
+    return res.status(500).json({
+      message:
+        "Unable to retrieve posted jobs.",
     });
   }
 });
@@ -182,15 +289,25 @@ router.post("/", protect, async (req, res) => {
 
 // ============================================================
 // Update Recruiter's Own Job
+// Recalculate Credibility
 // ============================================================
 
 router.put("/:id", protect, async (req, res) => {
   try {
-    // Find only a job owned by
-    // the logged-in recruiter
+    if (req.user.role !== "recruiter") {
+      return res.status(403).json({
+        message:
+          "Only recruiters can update jobs.",
+      });
+    }
+
+    // Find only job owned by logged-in recruiter
     const job = await Job.findOne({
-      _id: req.params.id,
-      recruiterId: req.user._id,
+      _id:
+        req.params.id,
+
+      recruiterId:
+        req.user._id,
     });
 
     if (!job) {
@@ -200,11 +317,11 @@ router.put("/:id", protect, async (req, res) => {
       });
     }
 
-    // Prevent ownership and ID modification
+    // Prevent ownership modification
     delete req.body.recruiterId;
     delete req.body._id;
 
-    // Update job fields
+    // Update job
     Object.assign(
       job,
       req.body
@@ -212,10 +329,33 @@ router.put("/:id", protect, async (req, res) => {
 
     await job.save();
 
+
+    // Recalculate credibility
+    const updatedCompany =
+      await recalculateCredibility(
+        req.user._id
+      );
+
+
     return res.status(200).json({
       message:
         "Job updated successfully.",
+
       job,
+
+      credibility: updatedCompany
+        ? {
+            trustLabel:
+              updatedCompany.trustLabel,
+
+            confidenceScore:
+              updatedCompany.confidenceScore,
+
+            number_of_jobs_posted:
+              updatedCompany
+                .number_of_jobs_posted,
+          }
+        : null,
     });
 
   } catch (error) {
@@ -225,7 +365,8 @@ router.put("/:id", protect, async (req, res) => {
     );
 
     return res.status(500).json({
-      message: error.message,
+      message:
+        error.message,
     });
   }
 });
@@ -233,15 +374,26 @@ router.put("/:id", protect, async (req, res) => {
 
 // ============================================================
 // Delete Recruiter's Own Job
+// Delete Related Applications
+// Recalculate Credibility
 // ============================================================
 
 router.delete("/:id", protect, async (req, res) => {
   try {
-    // Find only a job belonging
-    // to the logged-in recruiter
+    if (req.user.role !== "recruiter") {
+      return res.status(403).json({
+        message:
+          "Only recruiters can delete jobs.",
+      });
+    }
+
+    // Find only recruiter's own job
     const job = await Job.findOne({
-      _id: req.params.id,
-      recruiterId: req.user._id,
+      _id:
+        req.params.id,
+
+      recruiterId:
+        req.user._id,
     });
 
     if (!job) {
@@ -251,18 +403,42 @@ router.delete("/:id", protect, async (req, res) => {
       });
     }
 
-    // Delete applications related
-    // to this job
+
+    // Delete applications related to job
     await Application.deleteMany({
-      jobId: job._id,
+      jobId:
+        job._id,
     });
 
-    // Delete the job
+
+    // Delete job
     await job.deleteOne();
+
+
+    // Recalculate credibility
+    const updatedCompany =
+      await recalculateCredibility(
+        req.user._id
+      );
+
 
     return res.status(200).json({
       message:
         "Job deleted successfully.",
+
+      credibility: updatedCompany
+        ? {
+            trustLabel:
+              updatedCompany.trustLabel,
+
+            confidenceScore:
+              updatedCompany.confidenceScore,
+
+            number_of_jobs_posted:
+              updatedCompany
+                .number_of_jobs_posted,
+          }
+        : null,
     });
 
   } catch (error) {
@@ -272,7 +448,8 @@ router.delete("/:id", protect, async (req, res) => {
     );
 
     return res.status(500).json({
-      message: error.message,
+      message:
+        error.message,
     });
   }
 });

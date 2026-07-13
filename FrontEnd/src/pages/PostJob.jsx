@@ -39,13 +39,13 @@ export default function PostJob() {
       setLoading(true);
 
       const { data } = await api.get("/job");
-
       setJobs(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(
         "Fetch jobs error:",
         error.response?.data || error.message
       );
+      setJobs([]);
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,6 @@ export default function PostJob() {
   // ==========================================================
   // Create / Update Job
   // ==========================================================
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -85,20 +84,45 @@ export default function PostJob() {
       setSubmitting(true);
 
       if (editingId) {
-        await api.put(`/job/${editingId}`, job);
+        const { data } = await api.put(
+          `/job/${editingId}`,
+          job
+        );
+
+        const updatedJob = data.job || data;
+
+        setJobs((previousJobs) =>
+          previousJobs.map((item) =>
+            item._id === editingId
+              ? updatedJob
+              : item
+          )
+        );
 
         alert("Job updated successfully.");
       } else {
-        await api.post("/job", job);
+        const { data } = await api.post(
+          "/job",
+          job
+        );
+
+        const newJob = data.job || data;
+
+        setJobs((previousJobs) => [
+          newJob,
+          ...previousJobs,
+        ]);
 
         alert("Job posted successfully.");
       }
 
-      await fetchJobs();
-
       setJob(emptyJob);
       setEditingId(null);
       setShowForm(false);
+
+      // Synchronize again with MongoDB
+      await fetchJobs();
+
     } catch (error) {
       console.error(
         "Save job error:",
@@ -107,17 +131,12 @@ export default function PostJob() {
 
       alert(
         error.response?.data?.message ||
-          "Unable to save the job."
+        "Unable to save the job."
       );
     } finally {
       setSubmitting(false);
     }
   };
-
-  // ==========================================================
-  // Edit Job
-  // ==========================================================
-
   const handleEdit = (item) => {
     setJob({
       jobTitle: item.jobTitle || "",
@@ -130,7 +149,9 @@ export default function PostJob() {
       skills: item.skills || "",
       jobType: item.jobType || "",
       vacancies: item.vacancies || "",
-      deadline: item.deadline || "",
+      deadline: item.deadline
+        ? item.deadline.split("T")[0]
+        : "",
       website: item.website || "",
       email: item.email || "",
     });
@@ -143,7 +164,6 @@ export default function PostJob() {
       behavior: "smooth",
     });
   };
-
   // ==========================================================
   // Delete Job
   // ==========================================================
@@ -179,7 +199,7 @@ export default function PostJob() {
 
       alert(
         error.response?.data?.message ||
-          "Unable to delete the job."
+        "Unable to delete the job."
       );
     }
   };
