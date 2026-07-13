@@ -1,4 +1,8 @@
-
+import {
+  MapPin,
+  Clock3,
+  ShieldCheck,
+} from "lucide-react";
 
 export default function JobCard({ job, onView }) {
 

@@ -4,6 +4,19 @@ export default function TrustScoreCard({
     company,
     applications,
 }) {
+    const trustScore = Math.round(
+        company?.confidenceScore ??
+        company?.trustScore ??
+        0
+    );
+
+    const trustLabel =
+        company?.trustLabel ??
+        (trustScore >= 80
+            ? "High Trust"
+            : trustScore >= 55
+                ? "Medium Trust"
+                : "Low Trust");
 
     const responseRate =
         applications.length === 0
@@ -17,14 +30,13 @@ export default function TrustScoreCard({
             );
 
     return (
+        <div className="px-8 mt-8">
 
-        <div className="mx-10 mt-8">
-
-            <div className="bg-[#131c2d] border border-[#283247] rounded-3xl p-8">
+            <div className="bg-[#111827] border border-slate-700 rounded-3xl p-8 shadow-xl">
 
                 {/* Header */}
 
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center flex-wrap gap-4">
 
                     <div>
 
@@ -32,19 +44,17 @@ export default function TrustScoreCard({
                             Recruiter Trust Score
                         </h2>
 
-                        <p className="text-[#9ca8c4] mt-2">
-                            AI powered recruiter credibility assessment
+                        <p className="text-slate-400 mt-2">
+                            AI-powered recruiter credibility assessment
                         </p>
 
                     </div>
 
-                    <div className="flex items-center gap-2 text-green-400">
+                    <div className="flex items-center gap-2 bg-green-600/20 border border-green-500/30 px-4 py-2 rounded-full text-green-400 font-semibold">
 
-                        <ShieldCheck size={22} />
+                        <ShieldCheck size={20} />
 
-                        <span className="font-semibold">
-                            Verified
-                        </span>
+                        Verified Recruiter
 
                     </div>
 
@@ -54,42 +64,33 @@ export default function TrustScoreCard({
 
                 <div className="grid lg:grid-cols-2 gap-12 mt-10">
 
-                    {/* Circular Score */}
+                    {/* Score */}
 
                     <div className="flex flex-col items-center justify-center">
 
-                        <div className="relative w-52 h-52 rounded-full border-[14px] border-green-500 flex items-center justify-center">
+                        <div className="relative w-52 h-52 rounded-full border-[14px] border-green-500 flex items-center justify-center hover:scale-105 transition-all duration-300">
 
                             <div className="text-center">
 
                                 <h1 className="text-6xl font-bold text-white">
-
-                                    {Math.round(
-                                        company?.confidenceScore || 0
-                                    )}
-
+                                    {trustScore}
                                 </h1>
 
                                 <p className="text-green-400 font-semibold mt-2">
-
-                                    {company?.trustLabel}
-
+                                    {trustLabel}
                                 </p>
 
                             </div>
 
                         </div>
 
-                        <div className="flex items-center gap-2 text-[#97A4C2] mt-6">
+                        <div className="flex items-center gap-2 text-slate-400 mt-6">
 
                             <CalendarDays size={18} />
 
                             <span>
-
-                                Last Updated :
-                                {" "}
+                                Last Updated:{" "}
                                 {new Date().toLocaleDateString()}
-
                             </span>
 
                         </div>
@@ -108,7 +109,9 @@ export default function TrustScoreCard({
 
                         <Metric
                             title="Approval Rate"
-                            value={Math.round((company?.approval_rate || 0) * 100)}
+                            value={Math.round(
+                                company?.approval_rate || 0
+                            )}
                             color="bg-blue-500"
                         />
 
@@ -119,10 +122,11 @@ export default function TrustScoreCard({
                         />
 
                         <Metric
-                            title="Complaint Rate"
+                            title="Complaint Count"
                             value={company?.complaints_count || 0}
                             max={10}
                             color="bg-red-500"
+                            percentage={false}
                         />
 
                     </div>
@@ -132,24 +136,22 @@ export default function TrustScoreCard({
             </div>
 
         </div>
-
     );
-
 }
+
 function Metric({
     title,
     value,
     color,
     max = 100,
+    percentage = true,
 }) {
-
     const width = Math.min(
         (value / max) * 100,
         100
     );
 
     return (
-
         <div>
 
             <div className="flex justify-between mb-2">
@@ -159,15 +161,15 @@ function Metric({
                 </p>
 
                 <p className="text-green-400 font-bold">
-                    {value}%
+                    {percentage ? `${value}%` : value}
                 </p>
 
             </div>
 
-            <div className="w-full h-3 bg-[#1d2638] rounded-full overflow-hidden">
+            <div className="w-full h-3 bg-slate-700 rounded-full overflow-hidden">
 
                 <div
-                    className={`${color} h-3 rounded-full`}
+                    className={`${color} h-3 rounded-full transition-all duration-500`}
                     style={{
                         width: `${width}%`,
                     }}
@@ -176,7 +178,5 @@ function Metric({
             </div>
 
         </div>
-
     );
-
 }

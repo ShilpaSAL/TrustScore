@@ -7,47 +7,92 @@ const Job = require("../models/Job");
 const Application = require("../models/Application");
 const { protect } = require("../middleware/auth");
 
-// Create / Update Company Profile
+const FLASK_URL =
+  process.env.FLASK_URL || "http://127.0.0.1:5001";
+
+// ============================================================
+// Create / Update Company Profile and Recruiter Credibility
+// ============================================================
+
 router.post("/", protect, async (req, res) => {
   try {
-    // Count recruiter jobs
-    const jobs = await Job.find({ recruiterId: req.user.id });
+    const recruiterId = req.user.id;
 
+    // --------------------------------------------------------
+    // 1. Get Existing Company Profile
+    // --------------------------------------------------------
+
+    const existingCompany = await Company.findOne({
+      userId: recruiterId,
+    });
+
+    // --------------------------------------------------------
+    // 2. Get Recruiter's Jobs
+    // --------------------------------------------------------
+
+    const jobs = await Job.find({
+      recruiterId,
+    }).sort({ createdAt: 1 });
+
+    // Number of jobs posted
     const number_of_jobs_posted = jobs.length;
-    // Calculate Job Posting Frequency
+
+    // --------------------------------------------------------
+    // 3. Average Job Description Length
+    // --------------------------------------------------------
+
+    let avg_job_description_length = 0;
+
+    if (jobs.length > 0) {
+      const totalDescriptionLength = jobs.reduce(
+        (total, job) =>
+          total + (job.jobDescription || "").length,
+        0
+      );
+
+      avg_job_description_length = Math.round(
+        totalDescriptionLength / jobs.length
+      );
+    }
+
+    // --------------------------------------------------------
+    // 4. Job Posting Frequency
+    // Average number of jobs posted per month
+    // --------------------------------------------------------
 
     let job_posting_frequency = 0;
 
-    if (jobs.length > 1) {
-      const oldestJob = jobs.reduce((oldest, current) =>
-        new Date(oldest.createdAt) < new Date(current.createdAt)
-          ? oldest
-          : current
-      );
-
-      const days =
-        (new Date() - new Date(oldestJob.createdAt)) /
-        (1000 * 60 * 60 * 24);
-
-      const months = Math.max(days / 30, 1);
-
-      job_posting_frequency = Number(
-        (jobs.length / months).toFixed(2)
-      );
-    } else if (jobs.length === 1) {
+    if (jobs.length === 1) {
       job_posting_frequency = 1;
     }
 
-    const avg_job_description_length =
-      jobs.length === 0
-        ? 0
-        : Math.round(
-          jobs.reduce(
-            (sum, job) =>
-              sum + (job.jobDescription || "").length,
-            0
-          ) / jobs.length
-        );
+    if (jobs.length > 1) {
+      const oldestJobDate = new Date(jobs[0].createdAt);
+      const currentDate = new Date();
+
+      const totalDays =
+        (currentDate - oldestJobDate) /
+        (1000 * 60 * 60 * 24);
+
+      const totalMonths = Math.max(
+        totalDays / 30,
+        1
+      );
+
+      job_posting_frequency = Number(
+        (
+          jobs.length /
+          totalMonths
+        ).toFixed(2)
+      );
+    }
+
+    // --------------------------------------------------------
+    // 5. Profile Completion Percentage
+    // Used for profile information only.
+    // It is NOT currently an ML input feature.
+    // --------------------------------------------------------
+
     const profileFields = [
       req.body.companyName,
       req.body.companyDescription,
@@ -61,156 +106,292 @@ router.post("/", protect, async (req, res) => {
     ];
 
     const completedFields = profileFields.filter(
-      (field) => field && field.toString().trim() !== ""
+      (field) =>
+        field !== undefined &&
+        field !== null &&
+        field.toString().trim() !== ""
     ).length;
 
     const profileCompletion = Math.round(
       (completedFields / profileFields.length) * 100
     );
-    // Calculate Approval Rate
+
+    // --------------------------------------------------------
+    // 6. Company Logo Presence
+    // --------------------------------------------------------
+
+    const company_logo_present =
+      req.body.company_logo_present !== undefined
+        ? Number(req.body.company_logo_present)
+        : existingCompany?.company_logo_present || 0;
+
+    // --------------------------------------------------------
+    // 7. Get Recruiter's Applications
+    // --------------------------------------------------------
 
     const applications = await Application.find({
-      recruiterId: req.user.id,
+      recruiterId,
     });
 
     const totalApplications = applications.length;
 
+    // --------------------------------------------------------
+    // 8. Calculate Approval Rate
+    // --------------------------------------------------------
+
     const acceptedApplications = applications.filter(
-      (app) => app.status === "Accepted"
+      (application) =>
+        application.status === "Accepted"
     ).length;
 
     const approval_rate =
       totalApplications === 0
         ? 0
         : Number(
-          (
-            acceptedApplications /
-            totalApplications
-          ).toFixed(2)
-        );
-    // Calculate Average Response Time (Hours)
+            (
+              acceptedApplications /
+              totalApplications
+            ).toFixed(2)
+          );
+
+    // --------------------------------------------------------
+    // 9. Calculate Average Response Time
+    // --------------------------------------------------------
 
     const respondedApplications = applications.filter(
-      (app) => app.respondedAt
+      (application) =>
+        application.respondedAt &&
+        application.createdAt
     );
 
     let response_time_hours = 24;
 
     if (respondedApplications.length > 0) {
-      const totalHours = respondedApplications.reduce(
-        (sum, app) => {
-          const hours =
-            (new Date(app.respondedAt) -
-              new Date(app.createdAt)) /
-            (1000 * 60 * 60);
+      const totalResponseHours =
+        respondedApplications.reduce(
+          (total, application) => {
+            const responseHours =
+              (
+                new Date(application.respondedAt) -
+                new Date(application.createdAt)
+              ) /
+              (1000 * 60 * 60);
 
-          return sum + hours;
-        },
-        0
-      );
+            return total + Math.max(responseHours, 0);
+          },
+          0
+        );
 
       response_time_hours = Number(
         (
-          totalHours /
+          totalResponseHours /
           respondedApplications.length
         ).toFixed(2)
       );
     }
+
+    // --------------------------------------------------------
+    // 10. Complaints Count
+    // --------------------------------------------------------
+    // The current project does not yet contain a Complaint model.
+    // Preserve the existing value until the complaint module is added.
+
+    const complaints_count =
+      existingCompany?.complaints_count || 0;
+
+    // --------------------------------------------------------
+    // 11. Prepare Machine Learning Input
+    // --------------------------------------------------------
+
     const mlInput = {
       number_of_jobs_posted,
       avg_job_description_length,
-      company_logo_present:
-        req.body.company_logo_present ?? 1,
-
+      company_logo_present,
       response_time_hours,
-
       job_posting_frequency,
-
-      complaints_count:
-        req.body.complaints_count ?? 0,
-
+      complaints_count,
       approval_rate,
     };
 
-    // Call Flask ML API
+    // --------------------------------------------------------
+    // 12. Call Flask Machine Learning API
+    // --------------------------------------------------------
+
     const mlResponse = await axios.post(
-      "http://127.0.0.1:5001/predict",
-      mlInput
+      `${FLASK_URL}/predict`,
+      mlInput,
+      {
+        timeout: 10000,
+      }
     );
+
+    if (mlResponse.data.status !== "success") {
+      return res.status(502).json({
+        message:
+          "Machine learning prediction service returned an error.",
+      });
+    }
 
     const trustLabel =
       mlResponse.data.trust_label;
 
     const confidenceScore =
       mlResponse.data.confidence_score;
+
+    // --------------------------------------------------------
+    // 13. Prepare Company Data
+    // --------------------------------------------------------
+
     const companyData = {
       ...req.body,
+
+      // Calculated behavioural features
       ...mlInput,
+
+      // ML prediction output
       trustLabel,
       confidenceScore,
+
+      // Profile information
       profileCompletion,
     };
 
-    let company = await Company.findOne({
-      userId: req.user.id,
-    });
+    // --------------------------------------------------------
+    // 14. Update Existing Company
+    // --------------------------------------------------------
 
-    if (company) {
-      company = await Company.findOneAndUpdate(
-        { userId: req.user.id },
-        companyData,
-        { new: true }
-      );
+    if (existingCompany) {
+      const updatedCompany =
+        await Company.findOneAndUpdate(
+          {
+            userId: recruiterId,
+          },
+          companyData,
+          {
+            new: true,
+            runValidators: true,
+          }
+        );
 
-      return res.json(company);
+      return res.status(200).json({
+        message:
+          "Company profile and recruiter credibility updated successfully.",
+        company: updatedCompany,
+      });
     }
 
-    company = await Company.create({
+    // --------------------------------------------------------
+    // 15. Create New Company
+    // --------------------------------------------------------
+
+    const company = await Company.create({
       ...companyData,
-      userId: req.user.id,
+      userId: recruiterId,
     });
 
-    res.status(201).json(company);
+    return res.status(201).json({
+      message:
+        "Company profile created and recruiter credibility generated successfully.",
+      company,
+    });
 
   } catch (error) {
-    console.error(error);
+    console.error(
+      "Company route error:",
+      error.response?.data || error.message
+    );
 
-    res.status(500).json({
-      message: error.message,
+    if (error.code === "ECONNREFUSED") {
+      return res.status(503).json({
+        message:
+          "Machine learning service is unavailable. Start the Flask server on port 5001.",
+      });
+    }
+
+    if (error.response) {
+      return res.status(
+        error.response.status || 500
+      ).json({
+        message:
+          error.response.data?.error ||
+          "Machine learning prediction failed.",
+      });
+    }
+
+    return res.status(500).json({
+      message:
+        "Unable to process company profile.",
     });
   }
 });
 
-// Get Company Profile
+
+// ============================================================
+// Get Logged-In Recruiter's Company Profile
+// ============================================================
+
 router.get("/", protect, async (req, res) => {
   try {
     const company = await Company.findOne({
       userId: req.user.id,
     });
 
-    res.json(company);
+    if (!company) {
+      return res.status(404).json({
+        message: "Company profile not found.",
+      });
+    }
+
+    return res.status(200).json(company);
+
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
+    console.error(
+      "Get company profile error:",
+      error.message
+    );
+
+    return res.status(500).json({
+      message:
+        "Unable to retrieve company profile.",
     });
   }
 });
 
-// Delete Company
+
+// ============================================================
+// Delete Company Profile
+// ============================================================
+
 router.delete("/", protect, async (req, res) => {
   try {
-    await Company.findOneAndDelete({
-      userId: req.user.id,
+    const company =
+      await Company.findOneAndDelete({
+        userId: req.user.id,
+      });
+
+    if (!company) {
+      return res.status(404).json({
+        message: "Company profile not found.",
+      });
+    }
+
+    return res.status(200).json({
+      message:
+        "Company profile deleted successfully.",
     });
 
-    res.json({
-      message: "Company profile deleted successfully",
-    });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
+    console.error(
+      "Delete company error:",
+      error.message
+    );
+
+    return res.status(500).json({
+      message:
+        "Unable to delete company profile.",
     });
   }
 });
+
 
 module.exports = router;

@@ -86,24 +86,24 @@ export default function CompanyProfile() {
 
   if (!editing && savedCompany) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="bg-slate-900 rounded-2xl shadow-lg p-8">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-4xl font-bold text-white">
+      <div className="max-w-7xl mx-auto px-8 py-8">
+        <div className="bg-[#111827] border border-slate-700 rounded-3xl shadow-xl p-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold text-white">
               Company Overview
             </h1>
 
             <div className="flex gap-3">
               <button
                 onClick={() => setEditing(true)}
-                className="bg-yellow-500 text-white px-5 py-2 rounded-lg"
+                className="bg-amber-500 hover:bg-amber-400 transition px-5 py-2 rounded-xl text-white font-semibold"
               >
                 Edit
               </button>
 
               <button
                 onClick={handleDelete}
-                className="bg-red-500 text-white px-5 py-2 rounded-lg"
+                className="bg-red-600 hover:bg-red-500 transition px-5 py-2 rounded-xl text-white font-semibold"
               >
                 Delete
               </button>
@@ -111,7 +111,7 @@ export default function CompanyProfile() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-slate-800 p-5 rounded-xl">
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 hover:border-indigo-500 transition-all duration-300">
               <h3 className="text-gray-400 text-sm">Company Name</h3>
               <p className="text-white text-lg font-semibold">
                 {savedCompany.companyName}
@@ -168,7 +168,7 @@ export default function CompanyProfile() {
             </div>
           </div>
 
-          <div className="bg-slate-800 p-5 rounded-xl mt-6">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 mt-6">
             <h3 className="text-gray-400 text-sm mb-2">
               Company Description
             </h3>
